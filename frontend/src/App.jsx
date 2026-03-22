@@ -26,7 +26,7 @@ function AppInner() {
             animation: 'spin 0.8s linear infinite',
           }} />
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading Spendly...</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading Paisa...</span>
         </div>
       </div>
     );

@@ -23,7 +23,7 @@ export default function Sidebar({ activeSection }) {
             <path d="M4 10h12M10 4v12" stroke="white" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </div>
-        <span style={styles.brandName}>Spendly</span>
+        <span style={styles.brandName}>Paisa</span>
       </div>
 
       {/* Nav */}
