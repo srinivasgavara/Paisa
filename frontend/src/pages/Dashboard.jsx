@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { id: 'Expenses', label: 'Expenses', icon: '📋' },
   { id: 'Analytics', label: 'Analytics', icon: '📈' },
   { id: 'Reports', label: 'Reports', icon: '📊' },
+  { id: 'Wallet', label: 'Wallet', icon: '💰' },
 ];
 
 export default function Dashboard() {
@@ -33,6 +34,10 @@ export default function Dashboard() {
   const [calDate, setCalDate] = useState(new Date().toISOString().split('T')[0]);
   const [calExpenses, setCalExpenses] = useState([]);
   const [calLoading, setCalLoading] = useState(false);
+  const [wallet, setWallet] = useState(null);
+  const [walletInput, setWalletInput] = useState('');
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [walletSaving, setWalletSaving] = useState(false);
   const bellRef = useRef(null);
   const calRef = useRef(null);
 
@@ -59,9 +64,20 @@ export default function Dashboard() {
     finally { setCalLoading(false); }
   }, [token]);
 
+  const fetchWallet = useCallback(async () => {
+    setWalletLoading(true);
+    try {
+      const data = await api.getWallet(token);
+      setWallet(data.balance);
+      setWalletInput(data.balance.toString());
+    } catch { /* ignore */ }
+    finally { setWalletLoading(false); }
+  }, [token]);
+
   useEffect(() => { fetchStats(); }, [fetchStats]);
   useEffect(() => { const t = setTimeout(fetchExpenses, search ? 300 : 0); return () => clearTimeout(t); }, [fetchExpenses, search]);
   useEffect(() => { if (showCalendar) fetchCalExpenses(calDate); }, [showCalendar, calDate, fetchCalExpenses]);
+  useEffect(() => { fetchWallet(); }, [fetchWallet]);
 
   useEffect(() => {
     function handleClick(e) {
@@ -100,6 +116,18 @@ export default function Dashboard() {
       a.download = `paisa-${new Date().toISOString().split('T')[0]}.xlsx`; a.click();
       URL.revokeObjectURL(url); toast.dismiss(); toast.success('Downloaded!');
     } catch { toast.dismiss(); toast.error('Export failed'); }
+  }
+
+  async function handleWalletSave() {
+    const val = parseFloat(walletInput);
+    if (isNaN(val) || val < 0) { toast.error('Enter a valid amount'); return; }
+    setWalletSaving(true);
+    try {
+      const data = await api.setWallet(token, val);
+      setWallet(data.balance);
+      toast.success('Wallet updated!');
+    } catch { toast.error('Failed to save'); }
+    finally { setWalletSaving(false); }
   }
 
   const firstName = user?.name?.split(' ')[0] || 'User';
@@ -472,6 +500,86 @@ export default function Dashboard() {
                     <div style={s.statSub}>{card.sub}</div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── WALLET PAGE ── */}
+          {activePage === 'Wallet' && (
+            <div style={s.page}>
+              <div style={s.pageHeader}><h2 style={s.pageTitle}>Wallet</h2></div>
+
+              {/* 3 Summary Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                {[
+                  { label: 'Wallet Balance', value: walletLoading ? '...' : formatCurrency(wallet ?? 0), sub: 'Your manually set balance', gradient: 'linear-gradient(135deg, #10b981, #34d399)' },
+                  { label: 'Total Spent (Month)', value: statsLoading ? '...' : formatCurrency(stats?.month?.total ?? 0), sub: `${stats?.month?.count ?? 0} expenses this month`, gradient: 'linear-gradient(135deg, #f87171, #dc2626)' },
+                  { label: 'Remaining', value: (walletLoading || statsLoading) ? '...' : formatCurrency(Math.max(0, (wallet ?? 0) - (stats?.month?.total ?? 0))), sub: "After this month's expenses", gradient: 'linear-gradient(135deg, #06b6d4, #0ea5e9)' },
+                ].map((card) => (
+                  <div key={card.label} style={s.statCard}>
+                    <div style={{ ...s.statCardBar, background: card.gradient }} />
+                    <div style={s.statLabel}>{card.label}</div>
+                    <div style={s.statValue}>{card.value}</div>
+                    <div style={s.statSub}>{card.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Progress Bar */}
+              {!walletLoading && !statsLoading && wallet > 0 && (
+                <div style={{ background: '#0d0d14', border: '1px solid #1a1a2a', borderRadius: 16, padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13, color: '#8888aa' }}>
+                    <span>Monthly spend vs wallet</span>
+                    <span style={{ color: '#f0f0f8', fontWeight: 700 }}>
+                      {Math.min(100, Math.round(((stats?.month?.total ?? 0) / wallet) * 100))}% used
+                    </span>
+                  </div>
+                  <div style={{ height: 10, background: '#1a1a2a', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${Math.min(100, ((stats?.month?.total ?? 0) / wallet) * 100)}%`,
+                      background: ((stats?.month?.total ?? 0) / wallet) > 0.8
+                        ? 'linear-gradient(90deg, #f87171, #dc2626)'
+                        : 'linear-gradient(90deg, #10b981, #34d399)',
+                      borderRadius: 999,
+                      transition: 'width 0.6s ease',
+                    }} />
+                  </div>
+                  {((stats?.month?.total ?? 0) / wallet) > 0.8 && (
+                    <div style={{ marginTop: 10, fontSize: 12, color: '#f87171' }}>
+                      ⚠️ You've used over 80% of your wallet this month.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Set Balance */}
+              <div style={{ background: '#0d0d14', border: '1px solid #1a1a2a', borderRadius: 16, padding: 24 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#f0f0f8', marginBottom: 4 }}>Set Wallet Balance</div>
+                <div style={{ fontSize: 13, color: '#555570', marginBottom: 16 }}>
+                  Enter your total available money. Remaining is auto-calculated from this month's expenses.
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                    <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#8888aa', fontSize: 16, fontWeight: 700 }}>₹</span>
+                    <input
+                      type="number"
+                      value={walletInput}
+                      onChange={(e) => setWalletInput(e.target.value)}
+                      placeholder="Enter your balance"
+                      min="0"
+                      step="0.01"
+                      style={{ width: '100%', padding: '12px 14px 12px 32px', background: '#1a1a2a', border: '1px solid #2a2a3a', borderRadius: 12, color: '#f0f0f8', fontSize: 16, fontWeight: 600, outline: 'none', colorScheme: 'dark' }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleWalletSave}
+                    disabled={walletSaving}
+                    style={{ padding: '12px 24px', borderRadius: 12, background: 'linear-gradient(135deg, #06b6d4, #d946ef)', color: 'white', fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer', boxShadow: '0 4px 16px rgba(6,182,212,0.3)', opacity: walletSaving ? 0.6 : 1 }}
+                  >
+                    {walletSaving ? 'Saving...' : 'Save Balance'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

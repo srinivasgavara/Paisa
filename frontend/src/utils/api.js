@@ -56,4 +56,9 @@ export const api = {
     if (!res.ok) throw new Error('Export failed');
     return res.blob();
   },
+
+  // Wallet
+  getWallet: (token) => request('/wallet', {}, token),
+  setWallet: (token, balance) =>
+    request('/wallet', { method: 'PUT', body: JSON.stringify({ balance }) }, token),
 };
