@@ -27,6 +27,7 @@ app.use('/api/', limiter);
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/expenses', require('./routes/expenses'));
+app.use('/api/wallet', require('./routes/wallet'));
 
 // Health check
 app.get('/api/health', (req, res) => {

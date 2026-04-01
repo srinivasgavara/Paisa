@@ -35,7 +35,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-DROP TRIGGER IF EXISTS update_expenses_updated_at ON expenses;
-CREATE TRIGGER update_expenses_updated_at
+CREATE OR REPLACE TRIGGER update_expenses_updated_at
   BEFORE UPDATE ON expenses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS wallet (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+  balance NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  updated_at TIMESTAMP DEFAULT NOW()
+);
