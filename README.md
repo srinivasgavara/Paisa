@@ -1,4 +1,4 @@
-# 💸 Spendly — Personal Expense Tracker
+# Paisa — Personal Expense Tracker
 
 A full-stack personal expense tracker with Google OAuth, real-time analytics, and Excel export.
 
